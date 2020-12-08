@@ -17,11 +17,23 @@ import urllib.request
 import xmlrpc.client
 
 
+def print_error(msg):
+    print(msg, file=sys.stderr)
+
+
 class Config:
-    username = os.environ["LOOPIA_API_USERNAME"]
-    password = os.environ["LOOPIA_API_PASSWORD"]
-    domain = os.environ["LOOPIA_DOMAIN"]
-    subdomain = os.environ["LOOPIA_SUBDOMAIN"]
+    try:
+        username = os.environ["LOOPIA_API_USERNAME"]
+        password = os.environ["LOOPIA_API_PASSWORD"]
+        domain = os.environ["LOOPIA_DOMAIN"]
+        subdomain = os.environ["LOOPIA_SUBDOMAIN"]
+    except KeyError as exception:
+        print_error(
+            "Could not read configuration from environment variable: {exception}".format(
+                exception=exception,
+            )
+        )
+        quit(1)
 
     fqdn = domain if subdomain == "@" else subdomain + "." + domain
 
@@ -30,13 +42,13 @@ class Config:
     loopia_api_xml_rpc_url = "https://api.loopia.se/RPCSERV"
 
 
-def print_error(msg):
-    print(msg, file=sys.stderr)
-
-
-def api_error():
-    print_error("Unknown API Error.")
-    quit(1)
+def api_error(exception):
+    print_error(
+        "Request to Loopia API failed: {exception}".format(
+            exception=exception,
+        )
+    )
+    quit(2)
 
 
 def get_string_value_from_url(url, max=None):
@@ -83,23 +95,18 @@ def get_records(recordType):
             Config.username,
             Config.password,
             Config.domain,
-            Config.subdomain
+            Config.subdomain,
         )
+    except Exception as exception:
+        api_error(exception)
 
-        # Remove irrelevant records and return.
-        return [d for d in zone_records if d["type"] == recordType]
-    except:
-        if "AUTH_ERROR" in zone_records:
-            print_error("API credentials are incorrect.")
-            quit(2)
-
-        api_error()
+    # Remove irrelevant records and return.
+    return [d for d in zone_records if d["type"] == recordType]
 
 
 def update_record(value, record):
     # Does the record need updating?
     if record["rdata"] != value:
-        # Yes, it does. Update it!
         # Setting record_id updates an existing record.
         new_record = {
             "priority": record["priority"],
@@ -115,42 +122,34 @@ def update_record(value, record):
                 Config.password,
                 Config.domain,
                 Config.subdomain,
-                new_record
+                new_record,
             )
-
-            print(
-                "{fqdn} ({recordType}, {value}): {status}".format(
-                    recordType=record["type"],
-                    fqdn=Config.fqdn,
-                    status=status,
-                    value=value
-                )
-            )
-
-        except:
-            api_error()
-
+        except Exception as exception:
+            api_error(exception)
     else:
-        # Record does not need updating.
-        print(
-            "{fqdn} ({recordType}, {value}): No change".format(
-                recordType=record["type"],
-                fqdn=Config.fqdn,
-                value=value
-            )
+        status = "No change"
+
+    print(
+        "{fqdn} {recordType}: {status} ({value})".format(
+            fqdn=Config.fqdn,
+            recordType=record["type"],
+            status=status,
+            value=value,
         )
+    )
 
 
 def check_and_update_record(recordType, value):
     """Fetch a single record and update it"""
     records = get_records(recordType)
+    recordCount = len(records)
 
-    if len(records) != 1:
+    if recordCount != 1:
         print_error(
             "Require exactly one {recordType} record for {fqdn}, but found {recordCount}.".format(
                 fqdn=Config.fqdn,
+                recordCount=recordCount,
                 recordType=recordType,
-                recordCount=len(records)
             )
         )
         quit(4)
@@ -159,16 +158,15 @@ def check_and_update_record(recordType, value):
 
 
 if __name__ == "__main__":
-    # Build XML RPC client
+    # Build XML RPC client.
     client = xmlrpc.client.ServerProxy(
         uri=Config.loopia_api_xml_rpc_url,
-        encoding="utf-8"
+        encoding="utf-8",
     )
 
-    # Get current A records and public IPv4 address
+    # Dynamic DNS updates.
     public_ipv4 = get_public_ipv4()
     check_and_update_record("A", public_ipv4)
 
-    # Get current AAAA records and public IPv6 address
     public_ipv6 = get_public_ipv6()
     check_and_update_record("AAAA", public_ipv6)
