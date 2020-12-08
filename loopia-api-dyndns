@@ -9,6 +9,7 @@ Based on Loopia API's official sample script.
 https://support.loopia.se/wiki/uppdatera-dynamisk-ip-adress-med-loopiaapi/
 """
 
+import ipaddress
 import os
 import re
 import sys
@@ -38,16 +39,42 @@ def api_error():
     quit(1)
 
 
-def get_string_from(url, max=None):
-    return urllib.request.urlopen(url).read(max).decode('utf-8').strip()
+def get_string_value_from_url(url, max=None):
+    try:
+        return urllib.request.urlopen(url).read(max).decode("utf-8").strip()
+    except:
+        print_error(
+            "Could not get string from url: {url}".format(
+                url=url,
+            )
+        )
+        quit(5)
 
 
 def get_public_ipv4():
-    return get_string_from(Config.check_ipv4_url)
+    ipv4str_from_url = get_string_value_from_url(Config.check_ipv4_url, 15)
+    try:
+        return str(ipaddress.IPv4Address(ipv4str_from_url))
+    except:
+        print_error(
+            "Could not parse IPv4 address: {ipv4str}".format(
+                ipv4str_from_url=ipv4str_from_url,
+            )
+        )
+        quit(7)
 
 
 def get_public_ipv6():
-    return get_string_from(Config.check_ipv6_url)
+    ipv6str_from_url = get_string_value_from_url(Config.check_ipv6_url, 45)
+    try:
+        return str(ipaddress.IPv6Address(ipv6str_from_url))
+    except:
+        print_error(
+            "Could not parse IPv6 address: {ipv6str}".format(
+                ipv6str_from_url=ipv6str_from_url,
+            )
+        )
+        quit(8)
 
 
 def get_records(recordType):
