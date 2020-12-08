@@ -65,7 +65,8 @@ class Config:
 
     ######### STOP EDITING HERE #########
 
-    checkIpv4Url = 'https://dns.loopia.se/checkip/'
+    checkIpv4Url = 'https://api-ipv4.ip.sb/ip'
+    checkIpv6Url = 'https://api-ipv6.ip.sb/ip'
     apiXmlRpcUrl = 'https://api.loopia.se/RPCSERV'
 
 
@@ -93,10 +94,13 @@ def del_excess(Config, zone_records):
 
 
 def get_public_ipv4():
-    """Get public IP adress"""
-    result = urllib.request.urlopen(Config.checkIpv4Url).read()
-    # Very sloppy regex, but it gets the job done.
-    return re.search('[0-9.]+', str(result)).group(0)
+    """Get public IPv4 adress"""
+    return urllib.request.urlopen(Config.checkIpv4Url).read()
+
+
+def get_public_ipv6():
+    """Get public IPv6 adress"""
+    return urllib.request.urlopen(Config.checkIpv6Url).read()
 
 
 def get_records(Config, recordType):
@@ -244,3 +248,7 @@ if __name__ == '__main__':
     # Get current A records and public IP address
     publicIpv4 = get_public_ipv4()
     addorUpdateRecord(Config, 'A', publicIpv4)
+
+    # Get current AAAA records and public IP address
+    publicIpv6 = get_public_ipv6()
+    addorUpdateRecord(Config, 'AAAA', publicIpv6)
