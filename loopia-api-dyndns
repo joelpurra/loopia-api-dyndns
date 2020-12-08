@@ -71,8 +71,8 @@ class Config:
 
 def api_error():
     """Print a warning message because an error has occured"""
-
-    print('Error! Not sure why, sorry! Please check your internet connection and https://www.driftbloggen.se/ Contact support@loopia.se if the problem persists.')
+    # Please check your internet connection and https://www.driftbloggen.se/ Contact support@loopia.se if the problem persists.
+    print('Unknown API Error.')
     quit(1)
 
 
@@ -85,7 +85,8 @@ def del_excess(Config, zone_records):
             Config.password,
             Config.domain,
             Config.subdomain,
-            record['record_id'])
+            record['record_id']
+        )
         num = num + 1
 
     print('Deleted {} unnecessary record(s)'.format(str(num)))
@@ -105,7 +106,8 @@ def get_records(Config, recordType):
             Config.username,
             Config.password,
             Config.domain,
-            Config.subdomain)
+            Config.subdomain
+        )
         # Remove irrelevant records and return
         return [d for d in zone_records if d['type'] == recordType]
     except:
@@ -137,17 +139,24 @@ def add_record(Config, recordType, value):
         Config.password,
         Config.domain,
         Config.subdomain,
-        new_record)
+        new_record
+    )
 
     if Config.subdomain == '@':
-        print('{domain}: {status}. Added new record.'.format(
-            domain=Config.domain,
-            status=status))
+        print(
+            '{domain}: {status}. Added new record.'.format(
+                domain=Config.domain,
+                status=status
+            )
+        )
     else:
-        print('{subdomain}.{domain}: {status}. Added new record.'.format(
-            subdomain=Config.subdomain,
-            domain=Config.domain,
-            status=status))
+        print(
+            '{subdomain}.{domain}: {status}. Added new record.'.format(
+                subdomain=Config.subdomain,
+                domain=Config.domain,
+                status=status
+            )
+        )
 
 
 def update_record(Config, value, record):
@@ -169,17 +178,24 @@ def update_record(Config, value, record):
                 Config.password,
                 Config.domain,
                 Config.subdomain,
-                new_record)
+                new_record
+            )
 
             if Config.subdomain == '@':
-                print('{domain}: {status}'.format(
-                    domain=Config.domain,
-                    status=status))
+                print(
+                    '{domain}: {status}'.format(
+                        domain=Config.domain,
+                        status=status
+                    )
+                )
             else:
-                print('{subdomain}.{domain}: {status}'.format(
-                    subdomain=Config.subdomain,
-                    domain=Config.domain,
-                    status=status))
+                print(
+                    '{subdomain}.{domain}: {status}'.format(
+                        subdomain=Config.subdomain,
+                        domain=Config.domain,
+                        status=status
+                    )
+                )
 
         except:
             api_error()
@@ -187,14 +203,22 @@ def update_record(Config, value, record):
     else:
         # Record does not need updating
         if Config.subdomain == '@':
-            print('{domain}: No change'.format(domain=Config.domain))
+            print(
+                '{domain}: No change'.format(
+                    domain=Config.domain
+                )
+            )
         else:
-            print('{subdomain}.{domain}: No change'.format(
-                subdomain=Config.subdomain,
-                domain=Config.domain))
+            print(
+                '{subdomain}.{domain}: No change'.format(
+                    subdomain=Config.subdomain,
+                    domain=Config.domain
+                )
+            )
 
 
 def addorUpdateRecord(Config, recordType, value):
+    """Add a record, potentially updating an existing record, and remove all excess records of the same type"""
     records = get_records(Config, recordType)
 
     # Do we currently have a record? If not, create one!
