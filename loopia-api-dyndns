@@ -69,7 +69,7 @@ class Config:
 def api_error():
     """Print a warning message because an error has occured"""
 
-    print('Error! Not sure why, sorry! Please check your internet connection and http://www.driftbloggen.se. Contact support@loopia.se if the problem persists.')
+    print('Error! Not sure why, sorry! Please check your internet connection and https://www.driftbloggen.se/ Contact support@loopia.se if the problem persists.')
     quit(1)
 
 
@@ -92,7 +92,7 @@ def del_excess(Config, zone_records):
 def get_ip():
     """Get public IP adress"""
     result = urllib.request.urlopen(
-        'http://dns.loopia.se/checkip/checkip.php').read()
+        'https://dns.loopia.se/checkip/').read()
     # Very sloppy regex, but it gets the job done.
     return re.search('[0-9.]+', str(result)).group(0)
 
