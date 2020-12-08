@@ -2,28 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-Updates dynamic DNS records for domains registered with Loopia.
-https://www.loopia.se/
+Dynamically updates the IPv4/IPv6 DNS records for domains registered with Loopia.
+https://joelpurra.com/projects/loopia-api-dyndns/
 
-Supports IPv4 (A) and IPv6 (AAAA) records.
-One record of each has to be present for the domain/subdomain to update. This script does not add them.
-
-Several environment variables, documented below, are required.
-Remember to NOT use your Customer Zone credentials, but your LoopiaAPI credentials.
-If you don't have an API user yet you can create one in the Customer Zone.
-https://www.loopia.se/api/
-
-For security reasons you shouldn't add more permissions than necessary.
-The user requires the following permissions for this script to function:
-
-- getZoneRecords    To find out which record to update
-- updateZoneRecord  To actually update the zone record
-
-Based on the official Loopia sample code.
+Based on Loopia API's official sample script.
 https://support.loopia.se/wiki/uppdatera-dynamisk-ip-adress-med-loopiaapi/
-
-For unknown errors, please check your internet connection and the Loopia API status.
-https://www.driftbloggen.se/
 """
 
 import os
@@ -34,30 +17,16 @@ import xmlrpc.client
 
 
 class Config:
-    ########## ENVIRONMENT VARIABLE CONFIGURATION ##########
-    # Your LoopiaAPI user credentials
-    # Remember, these are NOT the same as your credentials for the Loopia Customer Zone.
-    username = os.environ['LOOPIA_API_USERNAME']
-    password = os.environ['LOOPIA_API_PASSWORD']
+    username = os.environ["LOOPIA_API_USERNAME"]
+    password = os.environ["LOOPIA_API_PASSWORD"]
+    domain = os.environ["LOOPIA_DOMAIN"]
+    subdomain = os.environ["LOOPIA_SUBDOMAIN"]
 
-    # Which domain name do you wish to update?
-    # Omit any subdomains here (i.e only write "mindoman.se", not "www.mindoman.se").
-    domain = os.environ['LOOPIA_DOMAIN']
+    fqdn = domain if subdomain == "@" else subdomain + "." + domain
 
-    # Which subdomain do you wish to update? Use "@" if you wish to update the root domain.
-    # Hint!
-    # If you wish to change the IP address for the main subdomains ("@", "www" and "*")
-    # you only need to keep "@" updated.
-    # Point the other subdomains to the main domain with CNAME records.
-    subdomain = os.environ['LOOPIA_SUBDOMAIN']
-
-    ######### END ENVIRONMENT VARIABLE CONFIGURATION #########
-
-    fqdn = domain if subdomain == '@' else subdomain + '.' + domain
-
-    check_ipv4_url = 'https://api-ipv4.ip.sb/ip'
-    check_ipv6_url = 'https://api-ipv6.ip.sb/ip'
-    loopia_api_xml_rpc_url = 'https://api.loopia.se/RPCSERV'
+    check_ipv4_url = "https://api-ipv4.ip.sb/ip"
+    check_ipv6_url = "https://api-ipv6.ip.sb/ip"
+    loopia_api_xml_rpc_url = "https://api.loopia.se/RPCSERV"
 
 
 def print_error(msg):
@@ -65,23 +34,23 @@ def print_error(msg):
 
 
 def api_error():
-    """Print a warning message because an error has occured"""
-    print_error('Unknown API Error.')
+    print_error("Unknown API Error.")
     quit(1)
 
 
+def get_string_from(url, max=None):
+    return urllib.request.urlopen(url).read(max).decode('utf-8').strip()
+
+
 def get_public_ipv4():
-    """Get public IPv4 adress"""
-    return urllib.request.urlopen(Config.check_ipv4_url).read()
+    return get_string_from(Config.check_ipv4_url)
 
 
 def get_public_ipv6():
-    """Get public IPv6 adress"""
-    return urllib.request.urlopen(Config.check_ipv6_url).read()
+    return get_string_from(Config.check_ipv6_url)
 
 
 def get_records(recordType):
-    """Get current zone records"""
     try:
         zone_records = client.getZoneRecords(
             Config.username,
@@ -90,28 +59,27 @@ def get_records(recordType):
             Config.subdomain
         )
 
-        # Remove irrelevant records and return
-        return [d for d in zone_records if d['type'] == recordType]
+        # Remove irrelevant records and return.
+        return [d for d in zone_records if d["type"] == recordType]
     except:
-        # Quit if unable to authorize
-        if 'AUTH_ERROR' in zone_records:
-            print_error('API credentials are incorrect.')
+        if "AUTH_ERROR" in zone_records:
+            print_error("API credentials are incorrect.")
             quit(2)
 
         api_error()
 
 
 def update_record(value, record):
-    """Update current record"""
     # Does the record need updating?
-    if record['rdata'] != value:
-        # Yes it does. Update it!
+    if record["rdata"] != value:
+        # Yes, it does. Update it!
+        # Setting record_id updates an existing record.
         new_record = {
-            'priority': record['priority'],
-            'rdata': value,
-            'record_id': record['record_id'],
-            'ttl': record['ttl'],
-            'type': record['type']
+            "priority": record["priority"],
+            "rdata": value,
+            "record_id": record["record_id"],
+            "ttl": record["ttl"],
+            "type": record["type"]
         }
 
         try:
@@ -123,11 +91,12 @@ def update_record(value, record):
                 new_record
             )
 
-            print_error(
-                '{fqdn} ({recordType}): {status}'.format(
-                    recordType=record['type'],
+            print(
+                "{fqdn} ({recordType}, {value}): {status}".format(
+                    recordType=record["type"],
                     fqdn=Config.fqdn,
-                    status=status
+                    status=status,
+                    value=value
                 )
             )
 
@@ -135,11 +104,12 @@ def update_record(value, record):
             api_error()
 
     else:
-        # Record does not need updating
-        print_error(
-            '{fqdn} ({recordType}): No change'.format(
-                recordType=record['type'],
-                fqdn=Config.fqdn
+        # Record does not need updating.
+        print(
+            "{fqdn} ({recordType}, {value}): No change".format(
+                recordType=record["type"],
+                fqdn=Config.fqdn,
+                value=value
             )
         )
 
@@ -150,7 +120,7 @@ def check_and_update_record(recordType, value):
 
     if len(records) != 1:
         print_error(
-            'Require exactly one {recordType} record for {fqdn}, but found {recordCount}.'.format(
+            "Require exactly one {recordType} record for {fqdn}, but found {recordCount}.".format(
                 fqdn=Config.fqdn,
                 recordType=recordType,
                 recordCount=len(records)
@@ -161,17 +131,17 @@ def check_and_update_record(recordType, value):
     update_record(value, records[0])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Build XML RPC client
     client = xmlrpc.client.ServerProxy(
         uri=Config.loopia_api_xml_rpc_url,
-        encoding='utf-8'
+        encoding="utf-8"
     )
 
     # Get current A records and public IPv4 address
     public_ipv4 = get_public_ipv4()
-    check_and_update_record('A', public_ipv4)
+    check_and_update_record("A", public_ipv4)
 
     # Get current AAAA records and public IPv6 address
     public_ipv6 = get_public_ipv6()
-    check_and_update_record('AAAA', public_ipv6)
+    check_and_update_record("AAAA", public_ipv6)
