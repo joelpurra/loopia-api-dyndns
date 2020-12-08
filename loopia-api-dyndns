@@ -25,6 +25,9 @@ On Linux, Mac OS and other Unix based systems you can use "cron"
 to schedule this script to make sure your IP address is updated automatically.
 On Windows you can use the "Task Scheduler".
 
+https://support.loopia.se/wiki/uppdatera-dynamisk-ip-adress-med-loopiaapi/
+https://www.loopia.se/api/
+
 Please contact support@loopia.se if you have any questions.
 """
 
