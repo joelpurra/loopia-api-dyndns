@@ -2,37 +2,33 @@
 # -*- coding: utf-8 -*-
 
 """
-########### HOW TO USE THIS FILE ###########
+Updates dynamic DNS records for domains registered with Loopia.
+https://www.loopia.se/
 
-A few rows down are several variables that you have to change.
+Supports IPv4 (A) and IPv6 (AAAA) records.
+One record of each has to be present for the domain/subdomain to update. This script does not add them.
+
+Several environment variables, documented below, are required.
 Remember to NOT use your Customer Zone credentials, but your LoopiaAPI credentials.
-
 If you don't have an API user yet you can create one in the Customer Zone.
-For reasons of security you shouldn't add more permissions than necessary.
-
-The user requires the following permissions for this script to function:
-* getZoneRecords    - To find out which record to update
-* updateZoneRecord  - To actually update the zone record
-
-The following permissions are optional but recommended:
-* removeZoneRecord  - If the zone has several A-records, this is necessary to remove all excess records.
-* addZoneRecord     - Necessary if the zone doesn't have any A-record at all.
-
-This script requires Python 3.0 or later.
-Any versions earlier than Python 3.0 WILL fail.
-
-On Linux, Mac OS and other Unix based systems you can use "cron"
-to schedule this script to make sure your IP address is updated automatically.
-On Windows you can use the "Task Scheduler".
-
-https://support.loopia.se/wiki/uppdatera-dynamisk-ip-adress-med-loopiaapi/
 https://www.loopia.se/api/
 
-Please contact support@loopia.se if you have any questions.
+For security reasons you shouldn't add more permissions than necessary.
+The user requires the following permissions for this script to function:
+
+- getZoneRecords    To find out which record to update
+- updateZoneRecord  To actually update the zone record
+
+Based on the official Loopia sample code.
+https://support.loopia.se/wiki/uppdatera-dynamisk-ip-adress-med-loopiaapi/
+
+For unknown errors, please check your internet connection and the Loopia API status.
+https://www.driftbloggen.se/
 """
 
 import os
 import re
+import sys
 import urllib.request
 import xmlrpc.client
 
@@ -55,49 +51,33 @@ class Config:
     # Point the other subdomains to the main domain with CNAME records.
     subdomain = os.environ['LOOPIA_SUBDOMAIN']
 
-    # Time To Live value. You don't actually have to change this at all unless
-    # you have a very specific reason for wanting a different value.
-    # This value is only used when creating new records, not when modifying existing.
-    ttl = os.environ.get('LOOPIA_TTL', '300')
-
     ######### END ENVIRONMENT VARIABLE CONFIGURATION #########
 
-    checkIpv4Url = 'https://api-ipv4.ip.sb/ip'
-    checkIpv6Url = 'https://api-ipv6.ip.sb/ip'
-    apiXmlRpcUrl = 'https://api.loopia.se/RPCSERV'
+    fqdn = domain if subdomain == '@' else subdomain + '.' + domain
+
+    check_ipv4_url = 'https://api-ipv4.ip.sb/ip'
+    check_ipv6_url = 'https://api-ipv6.ip.sb/ip'
+    loopia_api_xml_rpc_url = 'https://api.loopia.se/RPCSERV'
+
+
+def print_error(msg):
+    print(msg, file=sys.stderr)
 
 
 def api_error():
     """Print a warning message because an error has occured"""
-    # Please check your internet connection and https://www.driftbloggen.se/ Contact support@loopia.se if the problem persists.
-    print('Unknown API Error.')
+    print_error('Unknown API Error.')
     quit(1)
-
-
-def del_excess(zone_records):
-    """Remove all A records except the first one"""
-    num = 0
-    for record in zone_records:
-        client.removeZoneRecord(
-            Config.username,
-            Config.password,
-            Config.domain,
-            Config.subdomain,
-            record['record_id']
-        )
-        num = num + 1
-
-    print('Deleted {} unnecessary record(s)'.format(str(num)))
 
 
 def get_public_ipv4():
     """Get public IPv4 adress"""
-    return urllib.request.urlopen(Config.checkIpv4Url).read()
+    return urllib.request.urlopen(Config.check_ipv4_url).read()
 
 
 def get_public_ipv6():
     """Get public IPv6 adress"""
-    return urllib.request.urlopen(Config.checkIpv6Url).read()
+    return urllib.request.urlopen(Config.check_ipv6_url).read()
 
 
 def get_records(recordType):
@@ -109,55 +89,16 @@ def get_records(recordType):
             Config.domain,
             Config.subdomain
         )
+
         # Remove irrelevant records and return
         return [d for d in zone_records if d['type'] == recordType]
     except:
         # Quit if unable to authorize
         if 'AUTH_ERROR' in zone_records:
-            print('Your user information seems to be incorrect. Please edit this file and check your username and password.')
+            print_error('API credentials are incorrect.')
             quit(2)
 
-        # Quit if API returns unknown error
-        if 'UNKNOWN_ERROR' in zone_records:
-            print('API returned "UNKNOWN ERROR". This could mean that the requested (sub)domain does not exist in this account.')
-            quit(3)
-
-        # Can't connect to the API for other reasons
         api_error()
-
-
-def add_record(recordType, value):
-    """Add a new record if we don't have any"""
-    new_record = {
-        'priority': '',
-        'rdata': value,
-        'type': recordType,
-        'ttl': Config.ttl
-    }
-
-    status = client.addZoneRecord(
-        Config.username,
-        Config.password,
-        Config.domain,
-        Config.subdomain,
-        new_record
-    )
-
-    if Config.subdomain == '@':
-        print(
-            '{domain}: {status}. Added new record.'.format(
-                domain=Config.domain,
-                status=status
-            )
-        )
-    else:
-        print(
-            '{subdomain}.{domain}: {status}. Added new record.'.format(
-                subdomain=Config.subdomain,
-                domain=Config.domain,
-                status=status
-            )
-        )
 
 
 def update_record(value, record):
@@ -167,10 +108,10 @@ def update_record(value, record):
         # Yes it does. Update it!
         new_record = {
             'priority': record['priority'],
-            'record_id': record['record_id'],
             'rdata': value,
-            'type': record['type'],
-            'ttl': record['ttl']
+            'record_id': record['record_id'],
+            'ttl': record['ttl'],
+            'type': record['type']
         }
 
         try:
@@ -182,70 +123,55 @@ def update_record(value, record):
                 new_record
             )
 
-            if Config.subdomain == '@':
-                print(
-                    '{domain}: {status}'.format(
-                        domain=Config.domain,
-                        status=status
-                    )
+            print_error(
+                '{fqdn} ({recordType}): {status}'.format(
+                    recordType=record['type'],
+                    fqdn=Config.fqdn,
+                    status=status
                 )
-            else:
-                print(
-                    '{subdomain}.{domain}: {status}'.format(
-                        subdomain=Config.subdomain,
-                        domain=Config.domain,
-                        status=status
-                    )
-                )
+            )
 
         except:
             api_error()
 
     else:
         # Record does not need updating
-        if Config.subdomain == '@':
-            print(
-                '{domain}: No change'.format(
-                    domain=Config.domain
-                )
+        print_error(
+            '{fqdn} ({recordType}): No change'.format(
+                recordType=record['type'],
+                fqdn=Config.fqdn
             )
-        else:
-            print(
-                '{subdomain}.{domain}: No change'.format(
-                    subdomain=Config.subdomain,
-                    domain=Config.domain
-                )
-            )
+        )
 
 
-def addorUpdateRecord(recordType, value):
-    """Add a record, potentially updating an existing record, and remove all excess records of the same type"""
+def check_and_update_record(recordType, value):
+    """Fetch a single record and update it"""
     records = get_records(recordType)
 
-    # Do we currently have a record? If not, create one!
-    if len(records) == 0:
-        add_record(recordType, value)
+    if len(records) != 1:
+        print_error(
+            'Require exactly one {recordType} record for {fqdn}, but found {recordCount}.'.format(
+                fqdn=Config.fqdn,
+                recordType=recordType,
+                recordCount=len(records)
+            )
+        )
+        quit(4)
 
-    else:
-        # Remove all excess records
-        if len(records) > 1:
-            del_excess(records[1:])
-
-        # Now let's update the record!
-        update_record(value, records[0])
+    update_record(value, records[0])
 
 
 if __name__ == '__main__':
     # Build XML RPC client
     client = xmlrpc.client.ServerProxy(
-        uri=Config.apiXmlRpcUrl,
+        uri=Config.loopia_api_xml_rpc_url,
         encoding='utf-8'
     )
 
-    # Get current A records and public IP address
-    publicIpv4 = get_public_ipv4()
-    addorUpdateRecord('A', publicIpv4)
+    # Get current A records and public IPv4 address
+    public_ipv4 = get_public_ipv4()
+    check_and_update_record('A', public_ipv4)
 
-    # Get current AAAA records and public IP address
-    publicIpv6 = get_public_ipv6()
-    addorUpdateRecord('AAAA', publicIpv6)
+    # Get current AAAA records and public IPv6 address
+    public_ipv6 = get_public_ipv6()
+    check_and_update_record('AAAA', public_ipv6)
