@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
@@ -35,6 +35,7 @@ import xmlrpc.client
 import urllib.request
 import re
 
+
 class Config:
     ########## EDIT HERE ##########
     # Your LoopiaAPI user credentials
@@ -64,11 +65,13 @@ class Config:
 
     ######### STOP EDITING HERE #########
 
+
 def api_error():
     """Print a warning message because an error has occured"""
 
     print('Error! Not sure why, sorry! Please check your internet connection and http://www.driftbloggen.se. Contact support@loopia.se if the problem persists.')
     quit(1)
+
 
 def del_excess(Config, zone_records):
     """Remove all A records except the first one"""
@@ -76,19 +79,23 @@ def del_excess(Config, zone_records):
     num = 0
     for record in zone_records:
         client.removeZoneRecord(
-                Config.username,
-                Config.password,
-                Config.domain,
-                Config.subdomain,
-                record['record_id'])
+            Config.username,
+            Config.password,
+            Config.domain,
+            Config.subdomain,
+            record['record_id'])
         num = num + 1
 
     print('Deleted {} unnecessary record(s)'.format(str(num)))
 
+
 def get_ip():
     """Get public IP adress"""
-    result = urllib.request.urlopen('http://dns.loopia.se/checkip/checkip.php').read()
-    return re.search('[0-9.]+', str(result)).group(0) # Very sloppy regex, but it gets the job done.
+    result = urllib.request.urlopen(
+        'http://dns.loopia.se/checkip/checkip.php').read()
+    # Very sloppy regex, but it gets the job done.
+    return re.search('[0-9.]+', str(result)).group(0)
+
 
 def get_records(Config):
     """Get current zone records"""
@@ -126,11 +133,11 @@ def add_record(Config, ip):
     }
 
     status = client.addZoneRecord(
-            Config.username,
-            Config.password,
-            Config.domain,
-            Config.subdomain,
-            new_record)
+        Config.username,
+        Config.password,
+        Config.domain,
+        Config.subdomain,
+        new_record)
 
     if Config.subdomain == '@':
         print('{domain}: {status}. Added new record.'.format(
@@ -141,6 +148,7 @@ def add_record(Config, ip):
             subdomain=Config.subdomain,
             domain=Config.domain,
             status=status))
+
 
 def update_record(Config, ip, record):
     """Update current A record"""
@@ -158,11 +166,11 @@ def update_record(Config, ip, record):
 
         try:
             status = client.updateZoneRecord(
-                    Config.username,
-                    Config.password,
-                    Config.domain,
-                    Config.subdomain,
-                    new_record)
+                Config.username,
+                Config.password,
+                Config.domain,
+                Config.subdomain,
+                new_record)
 
             if Config.subdomain == '@':
                 print('{domain}: {status}'.format(
@@ -194,8 +202,8 @@ def update_record(Config, ip, record):
 if __name__ == '__main__':
     # Build XML RPC client
     client = xmlrpc.client.ServerProxy(
-        uri = 'https://api.loopia.se/RPCSERV',
-        encoding = 'utf-8')
+        uri='https://api.loopia.se/RPCSERV',
+        encoding='utf-8')
 
     # Get current A records and public IP address
     a_records = get_records(Config)
@@ -211,4 +219,4 @@ if __name__ == '__main__':
             del_excess(Config, a_records[1:])
 
         # Now let's update the record!
-        update_record(Config, new_ip, a_records [0])
+        update_record(Config, new_ip, a_records[0])
