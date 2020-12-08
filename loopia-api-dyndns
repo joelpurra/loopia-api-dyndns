@@ -65,6 +65,9 @@ class Config:
 
     ######### STOP EDITING HERE #########
 
+    checkIpv4Url = 'https://dns.loopia.se/checkip/'
+    apiXmlRpcUrl = 'https://api.loopia.se/RPCSERV'
+
 
 def api_error():
     """Print a warning message because an error has occured"""
@@ -75,7 +78,6 @@ def api_error():
 
 def del_excess(Config, zone_records):
     """Remove all A records except the first one"""
-
     num = 0
     for record in zone_records:
         client.removeZoneRecord(
@@ -89,15 +91,14 @@ def del_excess(Config, zone_records):
     print('Deleted {} unnecessary record(s)'.format(str(num)))
 
 
-def get_ip():
+def get_public_ipv4():
     """Get public IP adress"""
-    result = urllib.request.urlopen(
-        'https://dns.loopia.se/checkip/').read()
+    result = urllib.request.urlopen(Config.checkIpv4Url).read()
     # Very sloppy regex, but it gets the job done.
     return re.search('[0-9.]+', str(result)).group(0)
 
 
-def get_records(Config):
+def get_records(Config, recordType):
     """Get current zone records"""
     try:
         zone_records = client.getZoneRecords(
@@ -106,7 +107,7 @@ def get_records(Config):
             Config.domain,
             Config.subdomain)
         # Remove irrelevant records and return
-        return [d for d in zone_records if d['type'] == 'A']
+        return [d for d in zone_records if d['type'] == recordType]
     except:
         # Quit if unable to authorize
         if 'AUTH_ERROR' in zone_records:
@@ -122,13 +123,12 @@ def get_records(Config):
         api_error()
 
 
-def add_record(Config, ip):
-    """Add a new A record if we don't have any"""
-
+def add_record(Config, recordType, value):
+    """Add a new record if we don't have any"""
     new_record = {
         'priority': '',
-        'rdata': ip,
-        'type': 'A',
+        'rdata': value,
+        'type': recordType,
         'ttl': Config.ttl
     }
 
@@ -150,16 +150,15 @@ def add_record(Config, ip):
             status=status))
 
 
-def update_record(Config, ip, record):
-    """Update current A record"""
-
+def update_record(Config, value, record):
+    """Update current record"""
     # Does the record need updating?
-    if record['rdata'] != new_ip:
+    if record['rdata'] != value:
         # Yes it does. Update it!
         new_record = {
             'priority': record['priority'],
             'record_id': record['record_id'],
-            'rdata': new_ip,
+            'rdata': value,
             'type': record['type'],
             'ttl': record['ttl']
         }
@@ -195,28 +194,29 @@ def update_record(Config, ip, record):
                 domain=Config.domain))
 
 
-############
-### Main ###
-############
+def addorUpdateRecord(Config, recordType, value):
+    records = get_records(Config, recordType)
+
+    # Do we currently have a record? If not, create one!
+    if len(records) == 0:
+        add_record(Config, recordType, value)
+
+    else:
+        # Remove all excess records
+        if len(records) > 1:
+            del_excess(Config, records[1:])
+
+        # Now let's update the record!
+        update_record(Config, value, records[0])
+
 
 if __name__ == '__main__':
     # Build XML RPC client
     client = xmlrpc.client.ServerProxy(
-        uri='https://api.loopia.se/RPCSERV',
-        encoding='utf-8')
+        uri=Config.apiXmlRpcUrl,
+        encoding='utf-8'
+    )
 
     # Get current A records and public IP address
-    a_records = get_records(Config)
-    new_ip = get_ip()
-
-    # Do we currently have an A record? If not, create one!
-    if len(a_records) == 0:
-        add_record(Config, new_ip)
-
-    else:
-        # Remove all excess A records
-        if len(a_records) > 1:
-            del_excess(Config, a_records[1:])
-
-        # Now let's update the record!
-        update_record(Config, new_ip, a_records[0])
+    publicIpv4 = get_public_ipv4()
+    addorUpdateRecord(Config, 'A', publicIpv4)
