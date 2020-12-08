@@ -31,39 +31,36 @@ https://www.loopia.se/api/
 Please contact support@loopia.se if you have any questions.
 """
 
-import xmlrpc.client
-import urllib.request
+import os
 import re
+import urllib.request
+import xmlrpc.client
 
 
 class Config:
-    ########## EDIT HERE ##########
+    ########## ENVIRONMENT VARIABLE CONFIGURATION ##########
     # Your LoopiaAPI user credentials
-    # Make sure to change these!
     # Remember, these are NOT the same as your credentials for the Loopia Customer Zone.
-    username = 'myusername@loopiaapi'
-    password = 'mypassword'
+    username = os.environ['LOOPIA_API_USERNAME']
+    password = os.environ['LOOPIA_API_PASSWORD']
 
     # Which domain name do you wish to update?
     # Omit any subdomains here (i.e only write "mindoman.se", not "www.mindoman.se").
-    domain = 'mindoman.se'
+    domain = os.environ['LOOPIA_DOMAIN']
 
     # Which subdomain do you wish to update? Use "@" if you wish to update the root domain.
-    subdomain = '@'
-
-    # Time To Live value. You don't actually have to change this at all unless
-    # you have a very specific reason for wanting a different value.
-    # This value is only used when creating new A records, not when modifying existing.
-    ttl = '300'
-
-    # All right, you're all set. No need to change anything else!
-
     # Hint!
     # If you wish to change the IP address for the main subdomains ("@", "www" and "*")
     # you only need to keep "@" updated.
     # Point the other subdomains to the main domain with CNAME records.
+    subdomain = os.environ['LOOPIA_SUBDOMAIN']
 
-    ######### STOP EDITING HERE #########
+    # Time To Live value. You don't actually have to change this at all unless
+    # you have a very specific reason for wanting a different value.
+    # This value is only used when creating new records, not when modifying existing.
+    ttl = os.environ.get('LOOPIA_TTL', '300')
+
+    ######### END ENVIRONMENT VARIABLE CONFIGURATION #########
 
     checkIpv4Url = 'https://api-ipv4.ip.sb/ip'
     checkIpv6Url = 'https://api-ipv6.ip.sb/ip'
@@ -77,7 +74,7 @@ def api_error():
     quit(1)
 
 
-def del_excess(Config, zone_records):
+def del_excess(zone_records):
     """Remove all A records except the first one"""
     num = 0
     for record in zone_records:
@@ -103,7 +100,7 @@ def get_public_ipv6():
     return urllib.request.urlopen(Config.checkIpv6Url).read()
 
 
-def get_records(Config, recordType):
+def get_records(recordType):
     """Get current zone records"""
     try:
         zone_records = client.getZoneRecords(
@@ -129,7 +126,7 @@ def get_records(Config, recordType):
         api_error()
 
 
-def add_record(Config, recordType, value):
+def add_record(recordType, value):
     """Add a new record if we don't have any"""
     new_record = {
         'priority': '',
@@ -163,7 +160,7 @@ def add_record(Config, recordType, value):
         )
 
 
-def update_record(Config, value, record):
+def update_record(value, record):
     """Update current record"""
     # Does the record need updating?
     if record['rdata'] != value:
@@ -221,21 +218,21 @@ def update_record(Config, value, record):
             )
 
 
-def addorUpdateRecord(Config, recordType, value):
+def addorUpdateRecord(recordType, value):
     """Add a record, potentially updating an existing record, and remove all excess records of the same type"""
-    records = get_records(Config, recordType)
+    records = get_records(recordType)
 
     # Do we currently have a record? If not, create one!
     if len(records) == 0:
-        add_record(Config, recordType, value)
+        add_record(recordType, value)
 
     else:
         # Remove all excess records
         if len(records) > 1:
-            del_excess(Config, records[1:])
+            del_excess(records[1:])
 
         # Now let's update the record!
-        update_record(Config, value, records[0])
+        update_record(value, records[0])
 
 
 if __name__ == '__main__':
@@ -247,8 +244,8 @@ if __name__ == '__main__':
 
     # Get current A records and public IP address
     publicIpv4 = get_public_ipv4()
-    addorUpdateRecord(Config, 'A', publicIpv4)
+    addorUpdateRecord('A', publicIpv4)
 
     # Get current AAAA records and public IP address
     publicIpv6 = get_public_ipv6()
-    addorUpdateRecord(Config, 'AAAA', publicIpv6)
+    addorUpdateRecord('AAAA', publicIpv6)
