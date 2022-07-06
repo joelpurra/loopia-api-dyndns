@@ -36,8 +36,8 @@ class Config:
 
     fqdn = domain if subdomain == "@" else subdomain + "." + domain
 
-    check_ipv4_url = "https://api-ipv4.ip.sb/ip"
-    check_ipv6_url = "https://api-ipv6.ip.sb/ip"
+    check_ipv4_url = "https://api.ipify.org/"
+    check_ipv6_url = "https://api6.ipify.org/"
     loopia_api_xml_rpc_url = "https://api.loopia.se/RPCSERV"
 
 

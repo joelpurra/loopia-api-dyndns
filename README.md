@@ -20,7 +20,7 @@ A script to [dynamically](https://en.wikipedia.org/wiki/Dynamic_DNS) update the 
   - Supports both IPv4 ([A](https://en.wikipedia.org/wiki/List_of_DNS_record_types#A)) and IPv6 ([AAAA](https://en.wikipedia.org/wiki/List_of_DNS_record_types#AAAA)) DNS records.
   - Simplified to only update existing records, not create nor delete records.
   - Does not update records if the IP address has not changed.
-- Uses the [IP.sb API](https://ip.sb/api/) to automatically look up the public IP addresses from computer using the script.
+- Uses the [ipify API](https://ipify.org/) to automatically look up the public IP addresses from computer using the script.
 
 </details>
 
@@ -41,7 +41,9 @@ The list is non-exhaustive.
 
 ## Requirements
 
-- [IPv4 and IPv6 internet connectivity](https://ip.sb/) from the computer using the script.
+- IPv4 and IPv6 internet connectivity from the computer using the script.
+  - [View current public IPv4 address.](https://api.ipify.org/)
+  - [View current public IPv6 address.](https://api6.ipify.org/)
 - A Loopia API user. Create a new one in the [Loopia Customer Zone](https://customerzone.loopia.se/).
   - Enable only these permissions, and nothing else.
     - `getZoneRecords`: query which record to update.
